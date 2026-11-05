@@ -1,40 +1,40 @@
 import { NextResponse } from 'next/server';
-import { getPendentes, savePendentes, PontoPendente } from '@/lib/db';
 
+const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzK_Pm54RSvwbgWT9s5v7uU-6lZ2EJUhW3OzSTZ_yKHtHKeVJv_s7YyJpOBInSy6wFAlw/exec';
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { linha, titulo, letra, autor, video_url, nome_usuario } = body;
+    const { linha, letra, autor, video_url, nome_usuario } = body;
 
     if (!linha || !letra || !nome_usuario) {
-      return NextResponse.json({ error: 'Linha, Letra e Nome do Usuário são obrigatórios.' }, { status: 400 });
+      return NextResponse.json({ error: 'Linha, Letra e Nome são obrigatórios.' }, { status: 400 });
     }
 
     if (video_url && !YOUTUBE_REGEX.test(video_url.trim())) {
-      return NextResponse.json({ error: 'O link de vídeo informado deve ser exclusivamente do YouTube.' }, { status: 400 });
+      return NextResponse.json({ error: 'O link deve ser exclusivamente do YouTube.' }, { status: 400 });
     }
 
-    const pendentes = getPendentes();
-    const novoPendente: PontoPendente = {
-      id: `pend-${Date.now()}`,
-      linha: linha.trim(),
-      titulo: titulo ? titulo.trim() : '',
-      letra: letra.trim(),
-      autor: autor ? autor.trim() : '',
-      video_url: video_url ? video_url.trim() : '',
-      nome_usuario: nome_usuario.trim(),
-      data_envio: new Date().toISOString(),
-      status: 'pendente'
-    };
+    const resp = await fetch(GOOGLE_SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tipo: 'novo_ponto',
+        linha: linha.trim(),
+        letra: letra.trim(),
+        autor: autor ? autor.trim() : '',
+        video_url: video_url ? video_url.trim() : '',
+        nome_usuario: nome_usuario.trim()
+      })
+    });
 
-    pendentes.push(novoPendente);
-    savePendentes(pendentes);
+    if (!resp.ok) {
+      return NextResponse.json({ error: 'Falha na gravação da planilha.' }, { status: 502 });
+    }
 
-    return NextResponse.json({ success: true, message: 'Ponto enviado para moderação com sucesso!' });
+    return NextResponse.json({ success: true, message: 'Ponto gravado na planilha para moderação!' });
   } catch (error) {
     return NextResponse.json({ error: 'Erro ao processar envio.' }, { status: 500 });
   }
 }
-
