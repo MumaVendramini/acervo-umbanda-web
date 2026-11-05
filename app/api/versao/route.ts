@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  const agora = new Date();
+  const versaoDinamica = agora.toISOString().replace(/[-:T]/g, '').slice(0, 12);
+  const dataFormatada = agora.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
   return NextResponse.json({
-    versao_sistemica: '202611051610',
-    data_formatada: '05/11/2026 16:10',
+    versao_sistemica: versaoDinamica,
+    data_formatada: dataFormatada,
     timestamp: Date.now()
   });
 }
+

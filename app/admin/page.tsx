@@ -2,122 +2,68 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, ArrowLeft, Check, Trash2, RotateCw } from 'lucide-react';
+import { Lock, ArrowLeft, ExternalLink, RotateCw, CheckCircle2 } from 'lucide-react';
 
-interface PontoPendente {
-  id: string;
-  linha: string;
-  titulo?: string;
-  letra: string;
-  autor?: string;
-  video_url?: string;
-  nome_usuario: string;
-  data_envio: string;
-}
-
-interface Comentario {
-  id: string;
-  ponto_id: string;
-  primeiro_verso: string;
-  nome_usuario: string;
-  mensagem: string;
-  data_envio: string;
-}
-
-const VERSAO_SISTEMICA = '202611051610';
+const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1o6I7zuw347-kfA3TNuuY07IDRWqQBsIkrNuWV6APF/edit';
 
 export default function AdminPage() {
   const [token, setToken] = useState('');
   const [isLogged, setIsLogged] = useState(false);
   const [erroLogin, setErroLogin] = useState('');
   const [loading, setLoading] = useState(false);
+  const [msgRecarga, setMsgRecarga] = useState('');
+  const [infoVersao, setInfoVersao] = useState({ versao: '', ultima_sincronizacao: '' });
 
-  const [totalPontos, setTotalPontos] = useState(0);
-  const [pendentes, setPendentes] = useState<PontoPendente[]>([]);
-  const [comentarios, setComentarios] = useState<Comentario[]>([]);
-  const [abaAtiva, setAbaAtiva] = useState<'pendentes' | 'comentarios'>('pendentes');
-  const [dataSincronizacao, setDataSincronizacao] = useState<string>('');
-  const [msgRecarga, setMsgRecarga] = useState<string>('');
+  useEffect(() => {
+    fetch('/api/versao')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.versao_sistemica) {
+          setInfoVersao({
+            versao: d.versao_sistemica,
+            ultima_sincronizacao: d.data_formatada || ''
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  const carregarDados = async (authToken: string) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroLogin('');
     setLoading(true);
+
     try {
       const res = await fetch('/api/admin', {
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${token.trim()}` }
       });
       if (res.ok) {
         const data = await res.json();
-        setTotalPontos(data.totalPontos || 0);
-        setPendentes(data.pendentes || []);
-        setComentarios(data.comentarios || []);
-        setDataSincronizacao(new Date().toLocaleString('pt-BR'));
+        if (data.versao) {
+          setInfoVersao({
+            versao: data.versao,
+            ultima_sincronizacao: data.ultima_sincronizacao || ''
+          });
+        }
         setIsLogged(true);
       } else {
         setErroLogin('Senha de administrador incorreta.');
       }
     } catch {
-      setErroLogin('Erro de conexão ao acessar o painel.');
+      setErroLogin('Erro de conexão ao validar a senha.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErroLogin('');
-    carregarDados(token);
-  };
-
-  const handleRecarregarCache = () => {
+  const handleLimparCache = () => {
     try {
+      localStorage.removeItem('acervo_umbanda_sheets_v1');
       localStorage.removeItem('acervo_umbanda_cache_v1');
-      setMsgRecarga('Cache local do navegador foi limpo com sucesso! Ao abrir o acervo, os dados serão recarregados.');
+      setMsgRecarga('Cache limpo com sucesso! Ao voltar ao acervo, as cantigas serão recarregadas da planilha.');
       setTimeout(() => setMsgRecarga(''), 4000);
     } catch {
-      setMsgRecarga('Não foi possível acessar o armazenamento local.');
-    }
-  };
-
-  const handleAprovarPendente = async (id: string) => {
-    const res = await fetch('/api/admin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'aprovar_pendente', payload: { id } })
-    });
-    if (res.ok) {
-      setPendentes(prev => prev.filter(p => p.id !== id));
-      setTotalPontos(t => t + 1);
-    }
-  };
-
-  const handleRejeitarPendente = async (id: string) => {
-    const res = await fetch('/api/admin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'rejeitar_pendente', payload: { id } })
-    });
-    if (res.ok) {
-      setPendentes(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
-  const handleResolverComentario = async (id: string) => {
-    const res = await fetch('/api/admin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ action: 'resolver_comentario', payload: { id } })
-    });
-    if (res.ok) {
-      setComentarios(prev => prev.filter(c => c.id !== id));
+      setMsgRecarga('Erro ao acessar o armazenamento local.');
     }
   };
 
@@ -130,7 +76,9 @@ export default function AdminPage() {
           </div>
           <h1 className="text-lg font-bold text-slate-900 mb-1">Painel do Zelador</h1>
           <p className="text-xs text-slate-500 mb-1">Digite a senha para gerenciar o acervo.</p>
-          <p className="text-[11px] text-slate-400 font-mono mb-6">Versão: {VERSAO_SISTEMICA}</p>
+          {infoVersao.versao && (
+            <p className="text-[11px] text-slate-400 font-mono mb-6">Versão: {infoVersao.versao}</p>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-3">
             <input
@@ -169,9 +117,9 @@ export default function AdminPage() {
             </Link>
             <div>
               <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>🌿</span> Curadoria & Moderação
+                <span>🌿</span> Painel de Curadoria & Zeladoria
               </h1>
-              <p className="text-xs text-slate-500 font-medium">{totalPontos} pontos no acervo oficial</p>
+              <p className="text-xs text-slate-500 font-medium">Controle litúrgico e de dados</p>
             </div>
           </div>
           <button
@@ -184,149 +132,73 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-        {/* Card Informativo de Versão Sistêmica e Dados */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-700">⚙️ Versão Sistêmica:</span>
-              <span className="font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md font-bold">
-                {VERSAO_SISTEMICA}
+        {/* Card de Status do Sistema */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Sistema Operacional & Ativo
+            </h2>
+            {infoVersao.versao && (
+              <span className="font-mono text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-md font-bold">
+                Versão: {infoVersao.versao}
               </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <p className="font-semibold text-slate-700">Base Central de Dados:</p>
+              <p className="text-slate-500">Google Sheets (Aba Acervo)</p>
+              <p className="text-[11px] text-slate-400">Qualquer edição nas células atualiza o site automaticamente.</p>
+              {infoVersao.ultima_sincronizacao && (
+                <p className="text-[11px] text-emerald-700 font-medium pt-1">
+                  Última sincronização: {infoVersao.ultima_sincronizacao}
+                </p>
+              )}
             </div>
-            <div className="text-slate-500">
-              📊 <strong>Última Sincronização de Dados:</strong> {dataSincronizacao || 'Ativa via Google Sheets'}
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <p className="font-semibold text-slate-700">Modo de Operação:</p>
+              <p className="text-slate-500">Offline-First / Cache Local no Navegador</p>
+              <p className="text-[11px] text-slate-400">Permite aos médiuns usar o app sem internet na gira.</p>
             </div>
           </div>
 
-          <div>
-            <button
-              onClick={handleRecarregarCache}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition"
-              title="Limpa o cache do navegador para forçar atualização imediata"
+          {/* Botões de Ação do Zelador */}
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <a
+              href={SPREADSHEET_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition"
             >
-              <RotateCw className="w-3.5 h-3.5" /> Forçar Recarga de Cache
+              <ExternalLink className="w-4 h-4" /> Abrir Planilha de Cantigas no Google Drive
+            </a>
+
+            <button
+              onClick={handleLimparCache}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 transition"
+            >
+              <RotateCw className="w-4 h-4" /> Forçar Recarga de Dados do Navegador
             </button>
           </div>
+
+          {msgRecarga && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
+              {msgRecarga}
+            </div>
+          )}
         </div>
 
-        {msgRecarga && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
-            {msgRecarga}
-          </div>
-        )}
-
-        {/* Abas */}
-        <div className="flex gap-2 border-b border-slate-200 pb-3">
-          <button
-            onClick={() => setAbaAtiva('pendentes')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              abaAtiva === 'pendentes' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
-            }`}
-          >
-            <span>📥 Pontos Enviados</span>
-            <span className="bg-black/20 px-2 py-0.5 rounded-full text-[10px]">{pendentes.length}</span>
-          </button>
-
-          <button
-            onClick={() => setAbaAtiva('comentarios')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-              abaAtiva === 'comentarios' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200'
-            }`}
-          >
-            <span>💬 Sugestões & Comentários</span>
-            <span className="bg-black/20 px-2 py-0.5 rounded-full text-[10px]">{comentarios.length}</span>
-          </button>
+        {/* Guia Rápido de Gestão */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-3 text-xs text-slate-600">
+          <h3 className="font-bold text-slate-900 text-sm">📖 Como Gerenciar seu Terreiro na Planilha:</h3>
+          <ul className="space-y-2 list-disc list-inside">
+            <li><strong>Para aprovar um ponto sugerido:</strong> Abra a aba <em>&quot;Pontos Enviados&quot;</em>, revise o texto e mova a linha para a aba <em>&quot;Acervo&quot;</em>.</li>
+            <li><strong>Para ler sugestões e correções:</strong> Abra a aba <em>&quot;Comentários&quot;</em> para ver o que os médiuns relataram.</li>
+            <li><strong>Para adicionar ou corrigir letras:</strong> Edite diretamente as células da aba <em>&quot;Acervo&quot;</em>. Em até 1 minuto, o site sincroniza sozinho.</li>
+          </ul>
         </div>
-
-        {/* ABA: PONTOS PENDENTES */}
-        {abaAtiva === 'pendentes' && (
-          <div className="space-y-4">
-            {pendentes.length === 0 ? (
-              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 text-sm">
-                Nenhum ponto aguardando moderação no momento.
-              </div>
-            ) : (
-              pendentes.map(p => (
-                <div key={p.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
-                        {p.linha}
-                      </span>
-                      <span className="text-slate-500">Enviado por: <strong>{p.nome_usuario}</strong></span>
-                    </div>
-                    <span className="text-slate-400 text-[11px]">{new Date(p.data_envio).toLocaleDateString()}</span>
-                  </div>
-
-                  <div className="whitespace-pre-line text-sm text-slate-800 font-medium leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/60">
-                    {p.letra}
-                  </div>
-
-                  {p.video_url && (
-                    <div className="text-xs text-slate-600">
-                      <strong>Vídeo YouTube:</strong>{' '}
-                      <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                        {p.video_url}
-                      </a>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                    <button
-                      onClick={() => handleRejeitarPendente(p.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-xl border border-red-200 font-semibold"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Descartar
-                    </button>
-                    <button
-                      onClick={() => handleAprovarPendente(p.id)}
-                      className="inline-flex items-center gap-1 px-4 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Aprovar e Incorporar
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* ABA: COMENTÁRIOS E SUGESTÕES */}
-        {abaAtiva === 'comentarios' && (
-          <div className="space-y-4">
-            {comentarios.length === 0 ? (
-              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 text-sm">
-                Nenhuma sugestão ou comentário pendente.
-              </div>
-            ) : (
-              comentarios.map(c => (
-                <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                  <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
-                    <span className="text-slate-500">De: <strong>{c.nome_usuario}</strong></span>
-                    <span className="text-slate-400 text-[11px]">{new Date(c.data_envio).toLocaleDateString()}</span>
-                  </div>
-
-                  <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                    <strong>Ponto referente:</strong> &quot;{c.primeiro_verso}&quot;
-                  </div>
-
-                  <div className="text-sm text-slate-900 bg-amber-50/50 p-3 rounded-xl border border-amber-200/60 leading-relaxed">
-                    {c.mensagem}
-                  </div>
-
-                  <div className="flex justify-end pt-2 border-t border-slate-100">
-                    <button
-                      onClick={() => handleResolverComentario(c.id)}
-                      className="inline-flex items-center gap-1 px-4 py-1.5 text-xs bg-slate-900 hover:bg-black text-white rounded-xl font-semibold shadow-sm transition"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Marcar como Resolvido
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
       </main>
     </div>
   );

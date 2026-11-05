@@ -6,7 +6,7 @@ import { Printer, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 interface Ponto {
-  id: string;
+  id: string | number;
   linha: string;
   toque?: string;
   letra: string;
@@ -19,12 +19,12 @@ function ImprimirConteudo() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/pontos?limit=3000')
+    fetch('/api/pontos')
       .then(res => res.json())
       .then(data => {
-        let lista: Ponto[] = data.pontos || [];
+        let lista: Ponto[] = Array.isArray(data.pontos) ? data.pontos : [];
         if (linhaParam && linhaParam !== 'Todas') {
-          lista = lista.filter(p => p.linha.toLowerCase() === linhaParam.toLowerCase());
+          lista = lista.filter(p => p.linha === linhaParam);
         }
         setPontos(lista);
         setLoading(false);
@@ -65,13 +65,13 @@ function ImprimirConteudo() {
 
         {loading ? (
           <div className="py-20 text-center text-slate-500 text-sm">
-            Diagramando pontos para impressão A4...
+            Carregando cantigas da planilha para impressão A4...
           </div>
         ) : (
           <div className="print-columns text-[11px] leading-tight">
             {pontos.map((ponto, idx) => (
               <div 
-                key={ponto.id} 
+                key={`print-${ponto.linha}-${ponto.id || idx}-${idx}`} 
                 className="print-avoid-break mb-4 p-2.5 border border-neutral-300 rounded-md bg-neutral-50/30"
               >
                 <div className="flex items-center justify-between font-bold text-[10px] text-neutral-800 border-b border-neutral-200 pb-1 mb-1.5 uppercase">
@@ -97,4 +97,3 @@ export default function ImprimirPage() {
     </Suspense>
   );
 }
-
