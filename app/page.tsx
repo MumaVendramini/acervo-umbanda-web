@@ -77,7 +77,12 @@ export default function HomePage() {
   const [pontoValidar, setPontoValidar] = useState<Ponto | null>(null);
   const [curadorNome, setCuradorNome] = useState('');
   const [curadorSenha, setCuradorSenha] = useState('');
+  const [curadorLinha, setCuradorLinha] = useState('');
+  const [curadorLetra, setCuradorLetra] = useState('');
+  const [curadorToque, setCuradorToque] = useState('');
   const [curadorVideo, setCuradorVideo] = useState('');
+  const [curadorAutor, setCuradorAutor] = useState('');
+  const [curadorOrigem, setCuradorOrigem] = useState('');
   const [statusValidar, setStatusValidar] = useState<{ tipo: 'ok' | 'erro' | null, msg: string }>({ tipo: null, msg: '' });
   const [validando, setValidando] = useState(false);
 
@@ -250,7 +255,12 @@ export default function HomePage() {
 
   const abrirModalValidacao = (ponto: Ponto) => {
     setPontoValidar(ponto);
+    setCuradorLinha(ponto.linha || 'Caboclos');
+    setCuradorLetra(ponto.letra || '');
+    setCuradorToque(ponto.toque || '');
     setCuradorVideo(ponto.video_url || '');
+    setCuradorAutor(ponto.autor || '');
+    setCuradorOrigem(ponto.origem || '');
     setStatusValidar({ tipo: null, msg: '' });
     // Tenta carregar credenciais salvas do curador
     try {
@@ -278,7 +288,12 @@ export default function HomePage() {
           ponto_id: pontoValidar.id,
           token: curadorSenha.trim(),
           nome_curador: curadorNome.trim(),
-          video_url: curadorVideo.trim()
+          linha: curadorLinha.trim(),
+          letra: curadorLetra.trim(),
+          toque: curadorToque.trim(),
+          video_url: curadorVideo.trim(),
+          autor: curadorAutor.trim(),
+          origem: curadorOrigem.trim()
         })
       });
       const data = await res.json();
@@ -289,9 +304,14 @@ export default function HomePage() {
             if (p.id === pontoValidar.id) {
               return { 
                 ...p, 
+                linha: curadorLinha.trim() || p.linha,
+                letra: curadorLetra.trim() || p.letra,
+                toque: curadorToque.trim() || p.toque,
+                video_url: curadorVideo.trim() || p.video_url,
+                autor: curadorAutor.trim() || p.autor,
+                origem: curadorOrigem.trim() || p.origem,
                 validado: 'SIM', 
-                curador: curadorNome.trim(),
-                video_url: curadorVideo.trim() || p.video_url
+                curador: curadorNome.trim()
               };
             }
             return p;
@@ -804,39 +824,104 @@ export default function HomePage() {
             </div>
 
             <form onSubmit={handleConfirmarValidacao} className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Linha / Orixá *</label>
+                  <select
+                    value={curadorLinha}
+                    onChange={e => setCuradorLinha(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                    required
+                  >
+                    {LINHAS.filter(l => l !== 'Todas').map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Toque / Ritmo</label>
+                  <input
+                    type="text"
+                    value={curadorToque}
+                    onChange={e => setCuradorToque(e.target.value)}
+                    placeholder="Ex: Ijexá, Nagô, Barravento..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Seu Nome (Curador) *</label>
-                <input
-                  type="text"
-                  value={curadorNome}
-                  onChange={e => setCuradorNome(e.target.value)}
-                  placeholder="Nome de quem está validando"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
+                <label className="block font-semibold text-slate-700 mb-1">Letra da Cantiga (Revise ou corrija)</label>
+                <textarea
+                  rows={5}
+                  value={curadorLetra}
+                  onChange={e => setCuradorLetra(e.target.value)}
+                  placeholder="Letra completa da cantiga..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 text-xs font-mono leading-relaxed focus:bg-white focus:border-blue-500"
                   required
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Link de Áudio/Vídeo no YouTube (Opcional)</label>
-                <input
-                  type="url"
-                  value={curadorVideo}
-                  onChange={e => setCuradorVideo(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">YouTube (Opcional)</label>
+                  <input
+                    type="url"
+                    value={curadorVideo}
+                    onChange={e => setCuradorVideo(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Autor (Opcional)</label>
+                  <input
+                    type="text"
+                    value={curadorAutor}
+                    onChange={e => setCuradorAutor(e.target.value)}
+                    placeholder="Compositor"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Origem (Opcional)</label>
+                  <input
+                    type="text"
+                    value={curadorOrigem}
+                    onChange={e => setCuradorOrigem(e.target.value)}
+                    placeholder="Terreiro / Livro"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Senha de Autorização *</label>
-                <input
-                  type="password"
-                  value={curadorSenha}
-                  onChange={e => setCuradorSenha(e.target.value)}
-                  placeholder="Senha para validar"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Seu Nome (Curador) *</label>
+                  <input
+                    type="text"
+                    value={curadorNome}
+                    onChange={e => setCuradorNome(e.target.value)}
+                    placeholder="Nome de quem valida"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Senha de Autorização *</label>
+                  <input
+                    type="password"
+                    value={curadorSenha}
+                    onChange={e => setCuradorSenha(e.target.value)}
+                    placeholder="Senha"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs focus:bg-white focus:border-blue-500"
+                    required
+                  />
+                </div>
               </div>
 
               {statusValidar.msg && (

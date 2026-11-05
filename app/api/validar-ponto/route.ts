@@ -5,7 +5,7 @@ const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzK_Pm54RSvwbg
 
 export async function POST(request: Request) {
   try {
-    const { ponto_id, token, nome_curador, video_url } = await request.json();
+    const { ponto_id, token, nome_curador, linha, letra, toque, video_url, autor, origem } = await request.json();
 
     if (token !== ADMIN_TOKEN) {
       return NextResponse.json({ error: 'Senha de curador incorreta.' }, { status: 401 });
@@ -23,7 +23,12 @@ export async function POST(request: Request) {
         tipo: 'validar_ponto',
         ponto_id,
         curador: nome_curador?.trim() || 'Curador',
-        video_url: video_url?.trim() || ''
+        linha: linha?.trim() || '',
+        letra: letra?.trim() || '',
+        toque: toque?.trim() || '',
+        video_url: video_url?.trim() || '',
+        autor: autor?.trim() || '',
+        origem: origem?.trim() || ''
       })
     });
 
