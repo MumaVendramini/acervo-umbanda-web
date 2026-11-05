@@ -82,8 +82,9 @@ export default function HomePage() {
   const [comentMsg, setComentMsg] = useState('');
   const [statusComent, setStatusComent] = useState<{ tipo: 'ok' | 'erro' | null, msg: string }>({ tipo: null, msg: '' });
 
-  // 1. CARREGAMENTO 100% DA PLANILHA DO GOOGLE (com cache offline no celular)
+  // 1. CARREGAMENTO 100% DA PLANILHA DO GOOGLE (com cache offline no celular e checagem leve de versão)
   useEffect(() => {
+    let cacheVersao = '';
     // Tenta carregar do cache offline imediatamente
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -92,24 +93,39 @@ export default function HomePage() {
         if (Array.isArray(parsed.pontos) && parsed.pontos.length > 0) {
           setPontos(parsed.pontos);
           setLoading(false);
+          cacheVersao = parsed.versao || '';
         }
       }
     } catch (e) {}
 
-    // Busca dados 100% atualizados da Planilha Google
-    fetch('/api/pontos')
+    // Checagem ultraleve (< 1 KB) de versão antes de baixar o acervo completo
+    fetch('/api/versao')
       .then(res => res.json())
-      .then(data => {
-        if (data.pontos && Array.isArray(data.pontos)) {
-          setPontos(data.pontos);
-          try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-              timestamp: Date.now(),
-              pontos: data.pontos
-            }));
-          } catch (e) {}
+      .then(info => {
+        const versaoRemota = info?.versao_sistemica || '';
+        // Se a versão for a mesma do cache, economiza franquia e não baixa 2MB de novo
+        if (cacheVersao && versaoRemota && cacheVersao === versaoRemota) {
+          setLoading(false);
+          return;
         }
-        setLoading(false);
+
+        // Se a versão mudou ou não há cache, baixa as cantigas em segundo plano
+        fetch('/api/pontos')
+          .then(res => res.json())
+          .then(data => {
+            if (data.pontos && Array.isArray(data.pontos)) {
+              setPontos(data.pontos);
+              try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                  versao: versaoRemota,
+                  timestamp: Date.now(),
+                  pontos: data.pontos
+                }));
+              } catch (e) {}
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
       })
       .catch(() => setLoading(false));
   }, []);
