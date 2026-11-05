@@ -13,7 +13,9 @@ import {
   Check, 
   Copy, 
   Lock,
-  X
+  X,
+  CheckCircle2,
+  BadgeCheck
 } from 'lucide-react';
 
 interface Ponto {
@@ -25,6 +27,8 @@ interface Ponto {
   origem?: string;
   video_url?: string;
   autor?: string;
+  validado?: boolean | string;
+  curador?: string;
 }
 
 const LINHAS = [
@@ -67,6 +71,15 @@ export default function HomePage() {
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [modalComentarioAberto, setModalComentarioAberto] = useState(false);
   const [pontoComentario, setPontoComentario] = useState<Ponto | null>(null);
+
+  // Modal Validação Comunitária (Curador)
+  const [modalValidarAberto, setModalValidarAberto] = useState(false);
+  const [pontoValidar, setPontoValidar] = useState<Ponto | null>(null);
+  const [curadorNome, setCuradorNome] = useState('');
+  const [curadorSenha, setCuradorSenha] = useState('');
+  const [curadorVideo, setCuradorVideo] = useState('');
+  const [statusValidar, setStatusValidar] = useState<{ tipo: 'ok' | 'erro' | null, msg: string }>({ tipo: null, msg: '' });
+  const [validando, setValidando] = useState(false);
 
   // Formulário Novo Ponto
   const [novoLinha, setNovoLinha] = useState('Caboclos');
@@ -170,7 +183,7 @@ export default function HomePage() {
 
   const handleEnviarNovo = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatusEnvio({ tipo: null, msg: 'Gravando na planilha...' });
+    setStatusEnvio({ tipo: null, msg: 'Enviando...' });
     try {
       const res = await fetch('/api/enviar-ponto', {
         method: 'POST',
@@ -186,7 +199,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setStatusEnvio({ tipo: 'ok', msg: 'Ponto gravado na planilha para moderação!' });
+        setStatusEnvio({ tipo: 'ok', msg: 'Ponto enviado com sucesso!' });
         setTimeout(() => {
           setModalNovoAberto(false);
           setNovoLetra('');
@@ -206,7 +219,7 @@ export default function HomePage() {
   const handleEnviarComentario = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pontoComentario) return;
-    setStatusComent({ tipo: null, msg: 'Gravando na planilha...' });
+    setStatusComent({ tipo: null, msg: 'Enviando...' });
     try {
       const primeiroVerso = pontoComentario.letra ? pontoComentario.letra.split('\n')[0] : '';
       const res = await fetch('/api/comentarios', {
@@ -221,7 +234,7 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setStatusComent({ tipo: 'ok', msg: 'Sugestão gravada na planilha com sucesso!' });
+        setStatusComent({ tipo: 'ok', msg: 'Comentário enviado com sucesso!' });
         setTimeout(() => {
           setModalComentarioAberto(false);
           setComentMsg('');
@@ -232,6 +245,91 @@ export default function HomePage() {
       }
     } catch {
       setStatusComent({ tipo: 'erro', msg: 'Erro de conexão.' });
+    }
+  };
+
+  const abrirModalValidacao = (ponto: Ponto) => {
+    setPontoValidar(ponto);
+    setCuradorVideo(ponto.video_url || '');
+    setStatusValidar({ tipo: null, msg: '' });
+    // Tenta carregar credenciais salvas do curador
+    try {
+      const salvo = localStorage.getItem('curador_umbanda_auth');
+      if (salvo) {
+        const { nome, senha } = JSON.parse(salvo);
+        if (nome) setCuradorNome(nome);
+        if (senha) setCuradorSenha(senha);
+      }
+    } catch {}
+    setModalValidarAberto(true);
+  };
+
+  const handleConfirmarValidacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pontoValidar) return;
+    setValidando(true);
+    setStatusValidar({ tipo: null, msg: 'Validando cantiga...' });
+
+    try {
+      const res = await fetch('/api/validar-ponto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ponto_id: pontoValidar.id,
+          token: curadorSenha.trim(),
+          nome_curador: curadorNome.trim(),
+          video_url: curadorVideo.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Atualiza otimista no estado e cache local
+        setPontos(prev => {
+          const novos = prev.map(p => {
+            if (p.id === pontoValidar.id) {
+              return { 
+                ...p, 
+                validado: 'SIM', 
+                curador: curadorNome.trim(),
+                video_url: curadorVideo.trim() || p.video_url
+              };
+            }
+            return p;
+          });
+
+          // Grava imediatamente no cache local para persistir no F5
+          try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            const parsed = cached ? JSON.parse(cached) : {};
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+              ...parsed,
+              pontos: novos
+            }));
+          } catch {}
+
+          return novos;
+        });
+
+        // Memoriza curador no navegador
+        try {
+          localStorage.setItem('curador_umbanda_auth', JSON.stringify({
+            nome: curadorNome.trim(),
+            senha: curadorSenha.trim()
+          }));
+        } catch {}
+
+        setStatusValidar({ tipo: 'ok', msg: 'Cantiga validada com sucesso!' });
+        setTimeout(() => {
+          setModalValidarAberto(false);
+          setStatusValidar({ tipo: null, msg: '' });
+        }, 1500);
+      } else {
+        setStatusValidar({ tipo: 'erro', msg: data.error || 'Falha ao validar cantiga.' });
+      }
+    } catch {
+      setStatusValidar({ tipo: 'erro', msg: 'Erro de conexão.' });
+    } finally {
+      setValidando(false);
     }
   };
 
@@ -394,7 +492,25 @@ export default function HomePage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-slate-400 font-mono text-[11px]">#{ponto.id || (index + 1)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-400 font-mono text-[11px]">#{ponto.id || (index + 1)}</span>
+                        {ponto.validado === 'SIM' || ponto.validado === true ? (
+                          <span 
+                            title={`Cantiga validada${ponto.curador ? ` por ${ponto.curador}` : ''}`} 
+                            className="text-blue-600 inline-flex items-center"
+                          >
+                            <BadgeCheck className="w-4 h-4 text-blue-600 fill-blue-100" />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => abrirModalValidacao(ponto)}
+                            title="Cantiga pendente de validação. Clique para validar como curador."
+                            className="text-slate-300 hover:text-blue-500 transition inline-flex items-center"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Versos: Estilo uniforme em todas as linhas */}
@@ -586,7 +702,7 @@ export default function HomePage() {
                   type="submit"
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition"
                 >
-                  Gravar na Planilha
+                  Enviar
                 </button>
               </div>
             </form>
@@ -659,7 +775,92 @@ export default function HomePage() {
                   type="submit"
                   className="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl font-semibold shadow-sm transition"
                 >
-                  Gravar na Planilha
+                  Enviar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Validação Litúrgica / Curador */}
+      {modalValidarAberto && pontoValidar && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <BadgeCheck className="w-4 h-4 text-blue-600" /> Validar Cantiga #{pontoValidar.id}
+              </h2>
+              <button 
+                onClick={() => setModalValidarAberto(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-4 text-xs text-slate-700 italic">
+              &quot;{pontoValidar.letra ? pontoValidar.letra.split('\n')[0] : ''}&quot;
+            </div>
+
+            <form onSubmit={handleConfirmarValidacao} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Seu Nome (Curador) *</label>
+                <input
+                  type="text"
+                  value={curadorNome}
+                  onChange={e => setCuradorNome(e.target.value)}
+                  placeholder="Nome de quem está validando"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Link de Áudio/Vídeo no YouTube (Opcional)</label>
+                <input
+                  type="url"
+                  value={curadorVideo}
+                  onChange={e => setCuradorVideo(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Senha de Autorização *</label>
+                <input
+                  type="password"
+                  value={curadorSenha}
+                  onChange={e => setCuradorSenha(e.target.value)}
+                  placeholder="Senha para validar"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {statusValidar.msg && (
+                <div className={`p-2.5 rounded-xl text-xs font-medium ${
+                  statusValidar.tipo === 'ok' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {statusValidar.msg}
+                </div>
+              )}
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalValidarAberto(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={validando}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-sm transition"
+                >
+                  {validando ? 'Validando...' : 'Confirmar Validação'}
                 </button>
               </div>
             </form>

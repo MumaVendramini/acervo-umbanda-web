@@ -2,9 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, ArrowLeft, ExternalLink, RotateCw, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowLeft, ExternalLink, RotateCw, CheckCircle2, MessageSquare, Check, Clock } from 'lucide-react';
 
-const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1o6I7zuw347-kfA3TNuuY07IDRWqQBsIkrNuWV6APF/edit';
+const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1o6J7zuzw34Z-kfA3tNuuY07lDRWqQBsdkrNiaWV6APE/edit';
+
+interface ComentarioItem {
+  id?: string | number;
+  data: string;
+  nome: string;
+  ponto: string;
+  mensagem: string;
+  status?: string;
+  linha_idx?: number;
+}
 
 export default function AdminPage() {
   const [token, setToken] = useState('');
@@ -13,6 +23,24 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [msgRecarga, setMsgRecarga] = useState('');
   const [infoVersao, setInfoVersao] = useState({ versao: '', ultima_sincronizacao: '' });
+
+  // Gestão de Comentários
+  const [comentarios, setComentarios] = useState<ComentarioItem[]>([]);
+  const [carregandoComents, setCarregandoComents] = useState(false);
+  const [atendendoId, setAtendendoId] = useState<string | number | null>(null);
+
+  const carregarComentarios = () => {
+    setCarregandoComents(true);
+    fetch('/api/comentarios')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.comentarios)) {
+          setComentarios(d.comentarios);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCarregandoComents(false));
+  };
 
   useEffect(() => {
     fetch('/api/versao')
@@ -46,6 +74,7 @@ export default function AdminPage() {
           });
         }
         setIsLogged(true);
+        carregarComentarios();
       } else {
         setErroLogin('Senha de administrador incorreta.');
       }
@@ -53,6 +82,28 @@ export default function AdminPage() {
       setErroLogin('Erro de conexão ao validar a senha.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarcarAtendido = async (item: ComentarioItem, idx: number) => {
+    setAtendendoId(item.id || idx);
+    try {
+      await fetch('/api/comentarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: 'atender_comentario',
+          linha_id: item.id || idx,
+          status: 'Atendido'
+        })
+      });
+
+      // Remove instantaneamente da lista visual do curador
+      setComentarios(prev => prev.filter((_, i) => i !== idx));
+    } catch {
+      alert('Erro ao marcar comentário como atendido.');
+    } finally {
+      setAtendendoId(null);
     }
   };
 
@@ -186,6 +237,68 @@ export default function AdminPage() {
           {msgRecarga && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
               {msgRecarga}
+            </div>
+          )}
+        </div>
+
+        {/* Central de Moderação de Comentários e Sugestões */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-600" /> Sugestões & Comentários dos Médiuns
+            </h2>
+            <button
+              onClick={carregarComentarios}
+              disabled={carregandoComents}
+              className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${carregandoComents ? 'animate-spin' : ''}`} /> Atualizar
+            </button>
+          </div>
+
+          {carregandoComents ? (
+            <div className="text-center py-6 text-xs text-slate-400">
+              Carregando sugestões da planilha...
+            </div>
+          ) : comentarios.length === 0 ? (
+            <div className="text-center py-8 text-xs text-slate-400 space-y-1">
+              <Check className="w-6 h-6 text-emerald-500 mx-auto" />
+              <p className="font-semibold text-slate-600">Nenhum comentário pendente!</p>
+              <p>Todas as sugestões foram atendidas.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {comentarios.map((item, idx) => (
+                <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-slate-800">{item.nome}</span>
+                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {item.data}
+                      </span>
+                    </div>
+                    {item.ponto && (
+                      <p className="text-[11px] text-emerald-800 font-medium italic">
+                        &quot;{item.ponto}&quot;
+                      </p>
+                    )}
+                    <p className="text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                      {item.mensagem}
+                    </p>
+                  </div>
+
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={() => handleMarcarAtendido(item, idx)}
+                      disabled={atendendoId === (item.id || idx)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm text-xs transition"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {atendendoId === (item.id || idx) ? 'Atendendo...' : 'Atendido'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

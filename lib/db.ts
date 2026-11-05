@@ -7,4 +7,7 @@ export interface Ponto {
   origem?: string;
   video_url?: string;
   autor?: string;
+  validado?: boolean | string;
+  curador?: string;
 }
+
