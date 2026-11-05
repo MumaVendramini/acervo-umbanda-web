@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, ArrowLeft, Check, Trash2, Edit3, MessageSquare, PlusCircle } from 'lucide-react';
+import { Lock, ArrowLeft, Check, Trash2, RotateCw } from 'lucide-react';
 
 interface PontoPendente {
   id: string;
@@ -24,6 +24,8 @@ interface Comentario {
   data_envio: string;
 }
 
+const VERSAO_SISTEMICA = '202611051610';
+
 export default function AdminPage() {
   const [token, setToken] = useState('');
   const [isLogged, setIsLogged] = useState(false);
@@ -34,6 +36,8 @@ export default function AdminPage() {
   const [pendentes, setPendentes] = useState<PontoPendente[]>([]);
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [abaAtiva, setAbaAtiva] = useState<'pendentes' | 'comentarios'>('pendentes');
+  const [dataSincronizacao, setDataSincronizacao] = useState<string>('');
+  const [msgRecarga, setMsgRecarga] = useState<string>('');
 
   const carregarDados = async (authToken: string) => {
     setLoading(true);
@@ -46,6 +50,7 @@ export default function AdminPage() {
         setTotalPontos(data.totalPontos || 0);
         setPendentes(data.pendentes || []);
         setComentarios(data.comentarios || []);
+        setDataSincronizacao(new Date().toLocaleString('pt-BR'));
         setIsLogged(true);
       } else {
         setErroLogin('Senha de administrador incorreta.');
@@ -61,6 +66,16 @@ export default function AdminPage() {
     e.preventDefault();
     setErroLogin('');
     carregarDados(token);
+  };
+
+  const handleRecarregarCache = () => {
+    try {
+      localStorage.removeItem('acervo_umbanda_cache_v1');
+      setMsgRecarga('Cache local do navegador foi limpo com sucesso! Ao abrir o acervo, os dados serão recarregados.');
+      setTimeout(() => setMsgRecarga(''), 4000);
+    } catch {
+      setMsgRecarga('Não foi possível acessar o armazenamento local.');
+    }
   };
 
   const handleAprovarPendente = async (id: string) => {
@@ -114,7 +129,8 @@ export default function AdminPage() {
             <Lock className="w-6 h-6" />
           </div>
           <h1 className="text-lg font-bold text-slate-900 mb-1">Painel do Zelador</h1>
-          <p className="text-xs text-slate-500 mb-6">Digite a senha de administrador para gerenciar o acervo.</p>
+          <p className="text-xs text-slate-500 mb-1">Digite a senha para gerenciar o acervo.</p>
+          <p className="text-[11px] text-slate-400 font-mono mb-6">Versão: {VERSAO_SISTEMICA}</p>
 
           <form onSubmit={handleLogin} className="space-y-3">
             <input
@@ -152,7 +168,9 @@ export default function AdminPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-base font-bold text-slate-900">Curadoria & Moderação</h1>
+              <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>🌿</span> Curadoria & Moderação
+              </h1>
               <p className="text-xs text-slate-500 font-medium">{totalPontos} pontos no acervo oficial</p>
             </div>
           </div>
@@ -165,7 +183,38 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+        {/* Card Informativo de Versão Sistêmica e Dados */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-700">⚙️ Versão Sistêmica:</span>
+              <span className="font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md font-bold">
+                {VERSAO_SISTEMICA}
+              </span>
+            </div>
+            <div className="text-slate-500">
+              📊 <strong>Última Sincronização de Dados:</strong> {dataSincronizacao || 'Ativa via Google Sheets'}
+            </div>
+          </div>
+
+          <div>
+            <button
+              onClick={handleRecarregarCache}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition"
+              title="Limpa o cache do navegador para forçar atualização imediata"
+            >
+              <RotateCw className="w-3.5 h-3.5" /> Forçar Recarga de Cache
+            </button>
+          </div>
+        </div>
+
+        {msgRecarga && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
+            {msgRecarga}
+          </div>
+        )}
+
         {/* Abas */}
         <div className="flex gap-2 border-b border-slate-200 pb-3">
           <button
@@ -282,4 +331,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
