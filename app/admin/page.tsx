@@ -29,6 +29,23 @@ export default function AdminPage() {
   const [carregandoComents, setCarregandoComents] = useState(false);
   const [atendendoId, setAtendendoId] = useState<string | number | null>(null);
 
+  // Métricas de Acesso
+  const [metricas, setMetricas] = useState<{ visitas_unicas: number; pageviews: number }>({ visitas_unicas: 0, pageviews: 0 });
+
+  const carregarMetricas = () => {
+    fetch('/api/visitas')
+      .then(r => r.json())
+      .then(d => {
+        if (d) {
+          setMetricas({
+            visitas_unicas: d.visitas_unicas || 0,
+            pageviews: d.pageviews || 0
+          });
+        }
+      })
+      .catch(() => { });
+  };
+
   const carregarComentarios = () => {
     setCarregandoComents(true);
     fetch('/api/comentarios')
@@ -38,7 +55,7 @@ export default function AdminPage() {
           setComentarios(d.comentarios);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setCarregandoComents(false));
   };
 
@@ -53,7 +70,7 @@ export default function AdminPage() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -75,6 +92,7 @@ export default function AdminPage() {
         }
         setIsLogged(true);
         carregarComentarios();
+        carregarMetricas();
       } else {
         setErroLogin('Senha de administrador incorreta.');
       }
@@ -86,14 +104,15 @@ export default function AdminPage() {
   };
 
   const handleMarcarAtendido = async (item: ComentarioItem, idx: number) => {
-    setAtendendoId(item.id || idx);
+    const idParaAtender = item.linha_idx || item.id || (idx + 2);
+    setAtendendoId(idParaAtender);
     try {
       await fetch('/api/comentarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tipo: 'atender_comentario',
-          linha_id: item.id || idx,
+          linha_id: idParaAtender,
           status: 'Atendido'
         })
       });
@@ -212,6 +231,21 @@ export default function AdminPage() {
               <p className="font-semibold text-slate-700">Modo de Operação:</p>
               <p className="text-slate-500">Offline-First / Cache Local no Navegador</p>
               <p className="text-[11px] text-slate-400">Permite aos médiuns usar o app sem internet na gira.</p>
+            </div>
+          </div>
+
+          {/* Estatísticas de Acesso */}
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+            <p className="font-semibold text-slate-800 text-xs mb-2">📊 Estatísticas de Audiência:</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white p-3 rounded-xl border border-slate-200/80">
+                <span className="text-[11px] text-slate-400 font-medium">Visitantes Únicos</span>
+                <p className="text-lg font-bold text-slate-900">👥 {metricas.visitas_unicas}</p>
+              </div>
+              <div className="bg-white p-3 rounded-xl border border-slate-200/80">
+                <span className="text-[11px] text-slate-400 font-medium">Total de Visualizações</span>
+                <p className="text-lg font-bold text-slate-900">🔄 {metricas.pageviews}</p>
+              </div>
             </div>
           </div>
 

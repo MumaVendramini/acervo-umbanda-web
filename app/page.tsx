@@ -105,6 +105,35 @@ export default function HomePage() {
   const [recarregandoPublico, setRecarregandoPublico] = useState(false);
   const [msgAtualizacao, setMsgAtualizacao] = useState('');
 
+  // Contador de Acessos
+  const [visitas, setVisitas] = useState<{ visitas_unicas: number; pageviews: number }>({ visitas_unicas: 0, pageviews: 0 });
+
+  useEffect(() => {
+    // Checa se é uma nova visita ou refresh
+    const jaVisitou = sessionStorage.getItem('sessao_visita_ativa');
+    const isNovaVisita = !jaVisitou;
+    if (isNovaVisita) {
+      sessionStorage.setItem('sessao_visita_ativa', 'true');
+    }
+
+    // Registra visita
+    fetch('/api/visitas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_nova_visita: isNovaVisita })
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d && (d.visitas_unicas || d.pageviews)) {
+          setVisitas({
+            visitas_unicas: d.visitas_unicas,
+            pageviews: d.pageviews
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleForcarAtualizacaoPublica = async () => {
     setRecarregandoPublico(true);
     setMsgAtualizacao('Buscando atualizações da planilha...');
@@ -1014,6 +1043,18 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Rodapé com Contador de Acessos */}
+      <footer className="max-w-6xl mx-auto px-4 pt-10 pb-6 text-center text-xs text-slate-400 space-y-1.5 border-t border-slate-200/60 mt-10">
+        <p className="font-medium text-slate-500">🌿 Acervo de Cantigas e Pontos de Umbanda • Curadoria Litúrgica</p>
+        {(visitas.visitas_unicas > 0 || visitas.pageviews > 0) && (
+          <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400">
+            <span>👥 {visitas.visitas_unicas} visitantes</span>
+            <span>•</span>
+            <span>🔄 {visitas.pageviews} visualizações</span>
+          </div>
+        )}
+      </footer>
     </div>
   );
 }
