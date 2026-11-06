@@ -119,14 +119,6 @@ export default function AdminPage() {
         headers: { Authorization: `Bearer ${token.trim()}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.versao) {
-          setInfoVersao({
-            versao: data.versao,
-          ultima_sincronizacao: data.ultima_sincronizacao || '',
-            ultima_alteracao: data.ultima_alteracao || ''
-          });
-        }
         setIsLogged(true);
         carregarComentarios();
         carregarPontosSugeridos();
