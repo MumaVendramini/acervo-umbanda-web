@@ -33,7 +33,7 @@ export default function AdminPage() {
   const [erroLogin, setErroLogin] = useState('');
   const [loading, setLoading] = useState(false);
   const [msgRecarga, setMsgRecarga] = useState('');
-  const [infoVersao, setInfoVersao] = useState({ versao: '', ultima_sincronizacao: '' });
+  const [infoVersao, setInfoVersao] = useState({ versao: '', ultima_sincronizacao: '', ultima_alteracao: '' });
 
   // Gestão de Comentários
   const [comentarios, setComentarios] = useState<ComentarioItem[]>([]);
@@ -89,30 +89,21 @@ export default function AdminPage() {
       .catch(() => { })
       .finally(() => setCarregandoPontosSug(false));
   };
-  setCarregandoComents(true);
-  fetch('/api/comentarios')
-    .then(r => r.json())
-    .then(d => {
-      if (Array.isArray(d.comentarios)) {
-        setComentarios(d.comentarios);
-      }
-    })
-    .catch(() => { })
-    .finally(() => setCarregandoComents(false));
-};
 
-useEffect(() => {
-  fetch('/api/versao')
-    .then(r => r.json())
-    .then(d => {
-      if (d?.versao_sistemica) {
-        setInfoVersao({
-          versao: d.versao_sistemica,
-          ultima_sincronizacao: d.data_formatada || ''
-        });
-      }
-    })
-    .catch(() => { });
+  useEffect(() => {
+    fetch('/api/versao')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.versao_sistemica) {
+          setInfoVersao({
+            versao: d.versao_sistemica,
+            ultima_sincronizacao: d.data_ultima_sincronizacao || d.data_formatada || '',
+            ultima_alteracao: d.data_ultima_alteracao || ''
+          });
+        }
+      })
+      .catch(() => { });
+  }, []);
 }, []);
 
 const handleLogin = async (e: React.FormEvent) => {
@@ -311,10 +302,14 @@ return (
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
             <p className="font-semibold text-slate-700">Base Central de Dados:</p>
             <p className="text-slate-500">Google Sheets (Aba Acervo)</p>
-            <p className="text-[11px] text-slate-400">Qualquer edição nas células atualiza o site automaticamente.</p>
+            {infoVersao.ultima_alteracao && (
+              <p className="text-[11px] text-slate-700 font-medium pt-1">
+                📅 <strong>Última alteração na planilha:</strong> {infoVersao.ultima_alteracao}
+              </p>
+            )}
             {infoVersao.ultima_sincronizacao && (
-              <p className="text-[11px] text-emerald-700 font-medium pt-1">
-                Última sincronização: {infoVersao.ultima_sincronizacao}
+              <p className="text-[11px] text-emerald-700 font-medium">
+                🔄 <strong>Última sincronização:</strong> {infoVersao.ultima_sincronizacao}
               </p>
             )}
           </div>
