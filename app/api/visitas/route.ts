@@ -5,17 +5,18 @@ const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzK_Pm54RSvwbg
 export async function GET() {
   try {
     const res = await fetch(`${GOOGLE_SHEET_URL}?aba=visitas`, {
-      next: { revalidate: 10 },
-      headers: { 'Cache-Control': 'no-cache' }
+      cache: 'no-store'
     });
     if (res.ok) {
       const data = await res.json();
+      const pv = Number(data.pageviews) || 0;
+      const vu = Math.max(pv > 0 ? 1 : 0, Number(data.visitas_unicas) || 0);
       return NextResponse.json({
-        visitas_unicas: data.visitas_unicas || 0,
-        pageviews: data.pageviews || 0
+        visitas_unicas: vu,
+        pageviews: pv
       });
     }
-  } catch {}
+  } catch { }
 
   return NextResponse.json({
     visitas_unicas: 1,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
         pageviews: data.pageviews
       });
     }
-  } catch {}
+  } catch { }
 
   return NextResponse.json({ success: true });
 }

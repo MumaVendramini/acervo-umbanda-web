@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  Search, 
-  PlusCircle, 
-  Printer, 
-  Youtube, 
-  MessageSquare, 
-  ChevronDown, 
-  ChevronUp, 
-  Check, 
-  Copy, 
+import {
+  Search,
+  PlusCircle,
+  Printer,
+  Youtube,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Copy,
   Lock,
   X,
   CheckCircle2,
@@ -124,14 +124,16 @@ export default function HomePage() {
     })
       .then(r => r.json())
       .then(d => {
-        if (d && (d.visitas_unicas || d.pageviews)) {
-          setVisitas({
-            visitas_unicas: d.visitas_unicas,
-            pageviews: d.pageviews
-          });
-        }
-      })
-      .catch(() => {});
+          if (d && (d.visitas_unicas !== undefined || d.pageviews !== undefined)) {
+            const pv = Number(d.pageviews) || 0;
+            const vu = Math.max(pv > 0 ? 1 : 0, Number(d.visitas_unicas) || 0);
+            setVisitas({
+            visitas_unicas: vu,
+              pageviews: pv
+            });
+          }
+        })
+      .catch(() => { });
   }, []);
 
   const handleForcarAtualizacaoPublica = async () => {
@@ -160,7 +162,7 @@ export default function HomePage() {
               timestamp: Date.now(),
               pontos: data.pontos
             }));
-          } catch {}
+          } catch { }
           setMsgAtualizacao('Acervo atualizado com sucesso!');
         } else {
           setMsgAtualizacao('Erro ao processar dados da planilha.');
@@ -190,7 +192,7 @@ export default function HomePage() {
           cacheVersao = parsed.versao || '';
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Checagem ultraleve (< 1 KB) de versão antes de baixar o acervo completo
     fetch('/api/versao')
@@ -215,7 +217,7 @@ export default function HomePage() {
                   timestamp: Date.now(),
                   pontos: data.pontos
                 }));
-              } catch (e) {}
+              } catch (e) { }
             }
             setLoading(false);
           })
@@ -346,7 +348,7 @@ export default function HomePage() {
         if (nome) setCuradorNome(nome);
         if (senha) setCuradorSenha(senha);
       }
-    } catch {}
+    } catch { }
     setModalValidarAberto(true);
   };
 
@@ -378,15 +380,15 @@ export default function HomePage() {
         setPontos(prev => {
           const novos = prev.map(p => {
             if (p.id === pontoValidar.id) {
-              return { 
-                ...p, 
+              return {
+                ...p,
                 linha: curadorLinha.trim() || p.linha,
                 letra: curadorLetra.trim() || p.letra,
                 toque: curadorToque.trim() || p.toque,
                 video_url: curadorVideo.trim() || p.video_url,
                 autor: curadorAutor.trim() || p.autor,
                 origem: curadorOrigem.trim() || p.origem,
-                validado: 'SIM', 
+                validado: 'SIM',
                 curador: curadorNome.trim()
               };
             }
@@ -401,7 +403,7 @@ export default function HomePage() {
               ...parsed,
               pontos: novos
             }));
-          } catch {}
+          } catch { }
 
           return novos;
         });
@@ -412,7 +414,7 @@ export default function HomePage() {
             nome: curadorNome.trim(),
             senha: curadorSenha.trim()
           }));
-        } catch {}
+        } catch { }
 
         setStatusValidar({ tipo: 'ok', msg: 'Cantiga validada com sucesso!' });
         setTimeout(() => {
@@ -429,10 +431,10 @@ export default function HomePage() {
     }
   };
 
-  const fontClass = 
+  const fontClass =
     fontSize === 'xlarge' ? 'text-base leading-relaxed' :
-    fontSize === 'large' ? 'text-sm leading-relaxed' :
-    'text-xs leading-normal';
+      fontSize === 'large' ? 'text-sm leading-relaxed' :
+        'text-xs leading-normal';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
@@ -451,7 +453,7 @@ export default function HomePage() {
           <div className="flex items-center gap-1.5 md:gap-2">
             {/* Controle de Fonte */}
             <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-              <button 
+              <button
                 onClick={() => setFontSize(f => f === 'xlarge' ? 'large' : 'normal')}
                 className="px-2 py-1 text-slate-600 hover:text-slate-900 text-xs font-bold"
                 title="Diminuir fonte"
@@ -459,7 +461,7 @@ export default function HomePage() {
                 A-
               </button>
               <span className="w-px h-3 bg-slate-300" />
-              <button 
+              <button
                 onClick={() => setFontSize(f => f === 'normal' ? 'large' : 'xlarge')}
                 className="px-2 py-1 text-slate-600 hover:text-slate-900 text-xs font-bold"
                 title="Aumentar fonte"
@@ -517,7 +519,7 @@ export default function HomePage() {
           )}
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-            <input 
+            <input
               type="text"
               placeholder="Buscar por verso cantado, toque, palavra..."
               value={busca}
@@ -525,7 +527,7 @@ export default function HomePage() {
               className="w-full bg-slate-100 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl pl-9 pr-8 py-2 text-sm text-slate-800 placeholder-slate-400 transition"
             />
             {busca && (
-              <button 
+              <button
                 onClick={() => setBusca('')}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
               >
@@ -544,11 +546,10 @@ export default function HomePage() {
                 <button
                   key={linha}
                   onClick={() => handleTrocarLinha(linha)}
-                  className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                    ativo 
-                      ? 'bg-slate-900 text-white shadow-sm' 
+                  className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition ${ativo
+                      ? 'bg-slate-900 text-white shadow-sm'
                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   {linha}
                 </button>
@@ -568,7 +569,7 @@ export default function HomePage() {
         ) : pontosFiltrados.length === 0 ? (
           <div className="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-sm max-w-md mx-auto">
             <p className="text-slate-500 text-sm font-medium">Nenhum ponto encontrado para essa seleção.</p>
-            <button 
+            <button
               onClick={() => { setBusca(''); setLinhaAtiva('Todas'); }}
               className="mt-3 text-xs text-emerald-600 font-semibold hover:underline"
             >
@@ -586,7 +587,7 @@ export default function HomePage() {
               const temMais = linhasTexto.length > 2;
 
               return (
-                <div 
+                <div
                   key={cardKey}
                   className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm hover:shadow transition duration-150 flex flex-col justify-between"
                 >
@@ -606,8 +607,8 @@ export default function HomePage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-400 font-mono text-[11px]">#{ponto.id || (index + 1)}</span>
                         {ponto.validado === 'SIM' || ponto.validado === true ? (
-                          <span 
-                            title={`Cantiga validada${ponto.curador ? ` por ${ponto.curador}` : ''}`} 
+                          <span
+                            title={`Cantiga validada${ponto.curador ? ` por ${ponto.curador}` : ''}`}
                             className="text-blue-600 inline-flex items-center"
                           >
                             <BadgeCheck className="w-4 h-4 text-blue-600 fill-blue-100" />
@@ -625,7 +626,7 @@ export default function HomePage() {
                     </div>
 
                     {/* Versos: Estilo uniforme em todas as linhas */}
-                    <div 
+                    <div
                       onClick={() => temMais && toggleCard(cardKey)}
                       className={`cursor-pointer whitespace-pre-line text-slate-800 font-normal tracking-wide ${fontClass}`}
                     >
@@ -712,7 +713,7 @@ export default function HomePage() {
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <span>➕</span> Cadastrar Novo Ponto
               </h2>
-              <button 
+              <button
                 onClick={() => setModalNovoAberto(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
@@ -794,9 +795,8 @@ export default function HomePage() {
               </div>
 
               {statusEnvio.msg && (
-                <div className={`p-3 rounded-xl text-xs font-medium ${
-                  statusEnvio.tipo === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                <div className={`p-3 rounded-xl text-xs font-medium ${statusEnvio.tipo === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
                   {statusEnvio.msg}
                 </div>
               )}
@@ -829,7 +829,7 @@ export default function HomePage() {
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <MessageSquare className="w-4 h-4 text-emerald-600" /> Sugerir Correção
               </h2>
-              <button 
+              <button
                 onClick={() => setModalComentarioAberto(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
@@ -867,9 +867,8 @@ export default function HomePage() {
               </div>
 
               {statusComent.msg && (
-                <div className={`p-2.5 rounded-xl text-xs font-medium ${
-                  statusComent.tipo === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                <div className={`p-2.5 rounded-xl text-xs font-medium ${statusComent.tipo === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
                   {statusComent.msg}
                 </div>
               )}
@@ -902,7 +901,7 @@ export default function HomePage() {
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <BadgeCheck className="w-4 h-4 text-blue-600" /> Validar Cantiga #{pontoValidar.id}
               </h2>
-              <button 
+              <button
                 onClick={() => setModalValidarAberto(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
@@ -1016,9 +1015,8 @@ export default function HomePage() {
               </div>
 
               {statusValidar.msg && (
-                <div className={`p-2.5 rounded-xl text-xs font-medium ${
-                  statusValidar.tipo === 'ok' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-red-50 text-red-800 border border-red-200'
-                }`}>
+                <div className={`p-2.5 rounded-xl text-xs font-medium ${statusValidar.tipo === 'ok' ? 'bg-blue-50 text-blue-800 border border-blue-200' : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
                   {statusValidar.msg}
                 </div>
               )}

@@ -49,13 +49,15 @@ export default function AdminPage() {
   const [metricas, setMetricas] = useState<{ visitas_unicas: number; pageviews: number }>({ visitas_unicas: 0, pageviews: 0 });
 
   const carregarMetricas = () => {
-    fetch('/api/visitas')
+    fetch('/api/visitas', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         if (d) {
+          const pv = Number(d.pageviews) || 0;
+          const vu = Math.max(pv > 0 ? 1 : 0, Number(d.visitas_unicas) || 0);
           setMetricas({
-            visitas_unicas: d.visitas_unicas || 0,
-            pageviews: d.pageviews || 0
+            visitas_unicas: vu,
+            pageviews: pv
           });
         }
       })
