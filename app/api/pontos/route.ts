@@ -8,13 +8,17 @@ export async function GET(request: Request) {
   const busca = searchParams.get('busca')?.toLowerCase().trim();
 
   try {
-    const res = await fetch(GOOGLE_SHEET_URL, { next: { revalidate: 30 } });
+    const res = await fetch(GOOGLE_SHEET_URL, { 
+      next: { revalidate: 15 },
+      headers: { 'Cache-Control': 'no-cache' }
+    });
     if (!res.ok) {
       return NextResponse.json({ error: 'Erro ao conectar à planilha Google' }, { status: 502 });
     }
 
     const data = await res.json();
     let pontos = Array.isArray(data.pontos) ? data.pontos : [];
+    const versaoPlanilha = data.versao || null;
 
     // Filtro de Linha
     if (linha && linha !== 'Todas') {
@@ -31,6 +35,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       total: pontos.length,
+      versao: versaoPlanilha,
       pontos
     });
   } catch (error) {

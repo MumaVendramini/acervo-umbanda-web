@@ -15,7 +15,8 @@ import {
   Lock,
   X,
   CheckCircle2,
-  BadgeCheck
+  BadgeCheck,
+  RotateCw
 } from 'lucide-react';
 
 interface Ponto {
@@ -99,6 +100,52 @@ export default function HomePage() {
   const [comentNome, setComentNome] = useState('');
   const [comentMsg, setComentMsg] = useState('');
   const [statusComent, setStatusComent] = useState<{ tipo: 'ok' | 'erro' | null, msg: string }>({ tipo: null, msg: '' });
+
+  // Recarga Pública
+  const [recarregandoPublico, setRecarregandoPublico] = useState(false);
+  const [msgAtualizacao, setMsgAtualizacao] = useState('');
+
+  const handleForcarAtualizacaoPublica = async () => {
+    setRecarregandoPublico(true);
+    setMsgAtualizacao('Buscando atualizações da planilha...');
+
+    try {
+      // 1. Limpa Storage Local
+      localStorage.removeItem(CACHE_KEY);
+
+      // 2. Limpa Cache do Service Worker
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+
+      // 3. Busca direto da API com bypass de cache HTTP
+      const res = await fetch('/api/pontos?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pontos && Array.isArray(data.pontos)) {
+          setPontos(data.pontos);
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+              versao: data.versao || Date.now(),
+              timestamp: Date.now(),
+              pontos: data.pontos
+            }));
+          } catch {}
+          setMsgAtualizacao('Acervo atualizado com sucesso!');
+        } else {
+          setMsgAtualizacao('Erro ao processar dados da planilha.');
+        }
+      } else {
+        setMsgAtualizacao('Falha ao conectar à planilha.');
+      }
+    } catch {
+      setMsgAtualizacao('Erro de conexão ao recarregar.');
+    } finally {
+      setRecarregandoPublico(false);
+      setTimeout(() => setMsgAtualizacao(''), 3000);
+    }
+  };
 
   // 1. CARREGAMENTO 100% DA PLANILHA DO GOOGLE (com cache offline no celular e checagem leve de versão)
   useEffect(() => {
@@ -392,6 +439,16 @@ export default function HomePage() {
               </button>
             </div>
 
+            {/* Forçar Recarga Pública */}
+            <button
+              onClick={handleForcarAtualizacaoPublica}
+              disabled={recarregandoPublico}
+              className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+              title="Atualizar acervo com a planilha"
+            >
+              <RotateCw className={`w-4 h-4 ${recarregandoPublico ? 'animate-spin text-emerald-600' : ''}`} />
+            </button>
+
             {/* Imprimir */}
             <Link
               href={`/imprimir?linha=${encodeURIComponent(linhaAtiva)}`}
@@ -424,6 +481,11 @@ export default function HomePage() {
 
         {/* Barra de Busca Instantânea */}
         <div className="max-w-6xl mx-auto px-4 pb-2.5">
+          {msgAtualizacao && (
+            <div className="mb-2 p-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center justify-between font-medium">
+              <span>{msgAtualizacao}</span>
+            </div>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             <input 
