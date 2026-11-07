@@ -89,6 +89,7 @@ export default function HomePage() {
 
   // Formulário Novo Ponto
   const [novoLinha, setNovoLinha] = useState('Caboclos');
+  const [novoToque, setNovoToque] = useState('');
   const [novoTitulo, setNovoTitulo] = useState('');
   const [novoLetra, setNovoLetra] = useState('');
   const [novoAutor, setNovoAutor] = useState('');
@@ -273,6 +274,7 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           linha: novoLinha,
+          toque: novoToque,
           titulo: novoTitulo,
           letra: novoLetra,
           autor: novoAutor,
@@ -286,6 +288,7 @@ export default function HomePage() {
         setTimeout(() => {
           setModalNovoAberto(false);
           setNovoLetra('');
+          setNovoToque('');
           setNovoTitulo('');
           setNovoVideo('');
           setNovoAutor('');
@@ -722,18 +725,31 @@ export default function HomePage() {
             </div>
 
             <form onSubmit={handleEnviarNovo} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Linha Espiritual *</label>
-                <select
-                  value={novoLinha}
-                  onChange={e => setNovoLinha(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-emerald-500"
-                  required
-                >
-                  {LINHAS.filter(l => l !== 'Todas').map(l => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Linha Espiritual *</label>
+                  <select
+                    value={novoLinha}
+                    onChange={e => setNovoLinha(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-emerald-500"
+                    required
+                  >
+                    {LINHAS.filter(l => l !== 'Todas').map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Toque / Ritmo (Opcional)</label>
+                  <input
+                    type="text"
+                    value={novoToque}
+                    onChange={e => setNovoToque(e.target.value)}
+                    placeholder="Ex: Ijexá, Barravento, Nagô..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-sm focus:bg-white focus:border-emerald-500"
+                  />
+                </div>
               </div>
 
               <div>

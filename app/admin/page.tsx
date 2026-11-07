@@ -2,9 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, ArrowLeft, ExternalLink, RotateCw, CheckCircle2, MessageSquare, Check, Clock, Music, Trash2, Youtube } from 'lucide-react';
+import { Lock, ArrowLeft, ExternalLink, RotateCw, CheckCircle2, MessageSquare, Check, Clock, Music, Trash2, Youtube, Copy, AlertTriangle } from 'lucide-react';
 
 const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1o6J7zuzw34Z-kfA3tNuuY07lDRWqQBsdkrNiaWV6APE/edit';
+
+interface DuplicadoPar {
+  id_par: string;
+  sim: number;
+  pontoA: {
+    id: string | number;
+    linha: string;
+    toque?: string;
+    linha_sheet: number;
+    letra: string;
+  };
+  pontoB: {
+    id: string | number;
+    linha: string;
+    toque?: string;
+    linha_sheet: number;
+    letra: string;
+  };
+}
 
 interface ComentarioItem {
   id?: string | number;
@@ -48,6 +67,12 @@ export default function AdminPage() {
   const [pontosSugeridos, setPontosSugeridos] = useState<PontoSugeridoItem[]>([]);
   const [carregandoPontosSug, setCarregandoPontosSug] = useState(false);
   const [aprovandoId, setAprovandoId] = useState<number | null>(null);
+
+  // Higienização de Duplicados
+  const [duplicados, setDuplicados] = useState<DuplicadoPar[]>([]);
+  const [carregandoDuplicados, setCarregandoDuplicados] = useState(false);
+  const [excluindoPontoId, setExcluindoPontoId] = useState<string | number | null>(null);
+  const [totalParesDetectados, setTotalParesDetectados] = useState(0);
 
   // Métricas de Acesso
   const [metricas, setMetricas] = useState<{ visitas_unicas: number; pageviews: number }>({ visitas_unicas: 0, pageviews: 0 });
@@ -94,6 +119,20 @@ export default function AdminPage() {
       .finally(() => setCarregandoPontosSug(false));
   };
 
+  const carregarDuplicados = () => {
+    setCarregandoDuplicados(true);
+    fetch('/api/duplicados')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.pares)) {
+          setDuplicados(d.pares);
+          setTotalParesDetectados(d.total_pares || d.pares.length);
+        }
+      })
+      .catch(() => { })
+      .finally(() => setCarregandoDuplicados(false));
+  };
+
   useEffect(() => {
     fetch('/api/versao')
       .then(r => r.json())
@@ -122,6 +161,7 @@ export default function AdminPage() {
         setIsLogged(true);
         carregarComentarios();
         carregarPontosSugeridos();
+        carregarDuplicados();
         carregarMetricas();
       } else {
         setErroLogin('Senha de administrador incorreta.');
@@ -203,6 +243,37 @@ export default function AdminPage() {
     } finally {
       setAprovandoId(null);
     }
+  };
+
+  const handleExcluirDuplicado = async (pontoIdParaExcluir: string | number, linhaSheet: number, idPar: string) => {
+    if (!confirm(`Tem certeza que deseja EXCLUIR o Ponto #${pontoIdParaExcluir} da planilha? Essa ação não pode ser desfeita.`)) return;
+
+    setExcluindoPontoId(pontoIdParaExcluir);
+    try {
+      const res = await fetch('/api/duplicados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ponto_id: pontoIdParaExcluir,
+          linha_sheet: linhaSheet
+        })
+      });
+
+      if (res.ok) {
+        setDuplicados(prev => prev.filter(par => par.id_par !== idPar));
+        alert(`Ponto #${pontoIdParaExcluir} excluído da planilha com sucesso!`);
+      } else {
+        alert('Erro ao excluir ponto da planilha.');
+      }
+    } catch {
+      alert('Erro de conexão ao excluir.');
+    } finally {
+      setExcluindoPontoId(null);
+    }
+  };
+
+  const handleIgnorarDuplicado = (idPar: string) => {
+    setDuplicados(prev => prev.filter(par => par.id_par !== idPar));
   };
 
   const handleLimparCache = () => {
@@ -497,6 +568,101 @@ export default function AdminPage() {
                       >
                         <Check className="w-3.5 h-3.5" />
                         {aprovandoId === item.linha_idx ? 'Aprovando...' : 'Aprovar e Integrar ao Acervo'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Seção 3: Higienização de Cantigas Duplicadas */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> Curadoria Litúrgica & Higienização de Duplicados
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {totalParesDetectados > 0
+                  ? `Identificamos ${totalParesDetectados} pares com alta semelhança. Compare e decida qual manter.`
+                  : 'Nenhuma cantiga duplicada detectada no momento.'}
+              </p>
+            </div>
+            <button
+              onClick={carregarDuplicados}
+              disabled={carregandoDuplicados}
+              className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium"
+            >
+              <RotateCw className={`w-3.5 h-3.5 ${carregandoDuplicados ? 'animate-spin' : ''}`} /> Atualizar
+            </button>
+          </div>
+
+          {carregandoDuplicados ? (
+            <p className="text-xs text-slate-400 py-6 text-center">Analisando semelhanças litúrgicas no acervo...</p>
+          ) : duplicados.length === 0 ? (
+            <p className="text-xs text-slate-400 py-4 text-center">Nenhum ponto duplicado pendente de revisão!</p>
+          ) : (
+            <div className="space-y-4">
+              {duplicados.map((par) => (
+                <div key={par.id_par} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold px-2.5 py-0.5 bg-amber-100 text-amber-900 rounded-md">
+                      {par.sim}% Semelhantes
+                    </span>
+                    <button
+                      onClick={() => handleIgnorarDuplicado(par.id_par)}
+                      className="text-xs text-slate-500 hover:text-slate-700 underline"
+                    >
+                      São pontos diferentes (Ignorar)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {/* Opção A */}
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col justify-between space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-slate-800">Ponto #{par.pontoA.id}</span>
+                          <span className="text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                            {par.pontoA.linha} {par.pontoA.toque ? `• ${par.pontoA.toque}` : ''}
+                          </span>
+                        </div>
+                        <p className="whitespace-pre-line text-slate-600 text-[11px] font-mono leading-relaxed bg-slate-50 p-2 rounded-lg max-h-36 overflow-y-auto">
+                          {par.pontoA.letra}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleExcluirDuplicado(par.pontoB.id, par.pontoB.linha_sheet, par.id_par)}
+                        disabled={excluindoPontoId !== null}
+                        className="w-full mt-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs shadow-sm transition"
+                      >
+                        {excluindoPontoId === par.pontoB.id ? 'Excluindo B...' : `Manter #${par.pontoA.id} e Excluir #${par.pontoB.id}`}
+                      </button>
+                    </div>
+
+                    {/* Opção B */}
+                    <div className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col justify-between space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-slate-800">Ponto #{par.pontoB.id}</span>
+                          <span className="text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-600">
+                            {par.pontoB.linha} {par.pontoB.toque ? `• ${par.pontoB.toque}` : ''}
+                          </span>
+                        </div>
+                        <p className="whitespace-pre-line text-slate-600 text-[11px] font-mono leading-relaxed bg-slate-50 p-2 rounded-lg max-h-36 overflow-y-auto">
+                          {par.pontoB.letra}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleExcluirDuplicado(par.pontoA.id, par.pontoA.linha_sheet, par.id_par)}
+                        disabled={excluindoPontoId !== null}
+                        className="w-full mt-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs shadow-sm transition"
+                      >
+                        {excluindoPontoId === par.pontoA.id ? 'Excluindo A...' : `Manter #${par.pontoB.id} e Excluir #${par.pontoA.id}`}
                       </button>
                     </div>
                   </div>

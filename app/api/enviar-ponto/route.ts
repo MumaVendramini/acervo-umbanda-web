@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         tipo: 'novo_ponto',
         linha: linha.trim(),
+        toque: toque ? toque.trim() : '',
         letra: letra.trim(),
         autor: autor ? autor.trim() : '',
         video_url: video_url ? video_url.trim() : '',
