@@ -537,9 +537,9 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Carrossel de Linhas (Fiel à sua lista) */}
+        {/* Carrossel de Linhas (Rolagem no mobile, quebra harmônica no desktop) */}
         <div className="border-t border-slate-100 bg-slate-50/50">
-          <div className="max-w-6xl mx-auto px-4 py-2 flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex flex-nowrap md:flex-wrap gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar scroll-smooth">
             {LINHAS.map(linha => {
               const ativo = linhaAtiva === linha;
               return (
